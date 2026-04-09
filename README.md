@@ -51,7 +51,7 @@ CLEAR:
 2. write CONTROL = 0x9
 4. wait until DONE = 1
 
-## Command Behavior Rules
+# Command Behavior Rules
 
 ### Valid commands
 A valid command is a write to CONTROL with START set and exactly one operation bit set.
