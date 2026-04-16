@@ -1,29 +1,34 @@
-module bloom_core (
-    input   logic           clk,
-    input   logic           rst_n,
+module bloom_core #(
+    parameter int KEY_WIDTH    = 32,
+    parameter int FILTER_WIDTH = 1024
+) (
+    input   logic                       clk,
+    input   logic                       rst_n,
 
-    input   logic           start,
-    input   logic           insert,
-    input   logic           query,
-    input   logic           clear,
-    input   logic   [31:0]  key,
+    input   logic                       start,
+    input   logic                       insert,
+    input   logic                       query,
+    input   logic                       clear,
+    input   logic   [KEY_WIDTH-1:0]     key,
 
-    output  logic           done,
-    output  logic           busy,
-    output  logic           query_result
+    output  logic                       done,
+    output  logic                       busy,
+    output  logic                       query_result
 );
+
+    localparam int IDX_WIDTH = $clog2(FILTER_WIDTH);
 
     typedef enum logic [1:0] {IDLE, INSERT, QUERY, CLEAR} state_t;
 
-    state_t             state_q,        state_d;
-    logic   [31:0]      key_q,          key_d;
-    logic   [1023:0]    filter_bits_q,  filter_bits_d;
-    logic               query_result_q, query_result_d;
-    logic               done_q,         done_d;
-    logic               busy_q,         busy_d;
+    state_t                         state_q,        state_d;
+    logic   [KEY_WIDTH-1:0]         key_q,          key_d;
+    logic   [FILTER_WIDTH-1:0]      filter_bits_q,  filter_bits_d;
+    logic                           query_result_q, query_result_d;
+    logic                           done_q,         done_d;
+    logic                           busy_q,         busy_d;
 
-    logic   [31:0]      h1, h2, h3;
-    logic   [9:0]       idx1, idx2, idx3;
+    logic   [KEY_WIDTH-1:0]         h1, h2, h3;
+    logic   [IDX_WIDTH-1:0]         idx1, idx2, idx3;
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -48,14 +53,15 @@ module bloom_core (
         key_d           =   key_q;
         filter_bits_d   =   filter_bits_q;
         query_result_d  =   query_result_q;
+        done_d          =   done_q;
 
         h1              =   key_q ^ (key_q >> 16);
         h2              =   key_q * 32'h045D9F3B;
         h3              =   key_q + (key_q << 6) + (key_q >> 2);
 
-        idx1            =   h1[9:0];
-        idx2            =   h2[9:0];
-        idx3            =   h3[9:0];
+        idx1            =   h1[IDX_WIDTH-1:0];
+        idx2            =   h2[IDX_WIDTH-1:0];
+        idx3            =   h3[IDX_WIDTH-1:0];
 
         case (state_q)
             IDLE: begin
@@ -96,7 +102,11 @@ module bloom_core (
         endcase
 
         busy_d  =   (state_d != IDLE);
-        done_d  =   (state_q != IDLE) && (state_d == IDLE);
+
+        if (state_d != IDLE)
+            done_d  =   1'b0;
+        else if (state_q != IDLE)
+            done_d  =   1'b1;
     end
 
     assign  done            =   done_q;
