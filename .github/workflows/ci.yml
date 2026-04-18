@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Compile software
-        run: gcc -o bloom software/main.c
+        run: gcc -o bloom petlinux/main.c
       
       - name: Run program
         run: ./bloom
