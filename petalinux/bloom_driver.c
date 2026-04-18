@@ -3,13 +3,27 @@
 - contains functions to initialize the hardware, insert keys, 
   query keys, and clean up resources 
 */
+#define MOCK 1
 
 #include "bloom_driver.h"
 #include <stdio.h>
 #include <stdint.h>
+
+#ifdef MOCK
+#include "mock_hw.h"
+#else
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
+#endif
+
+
+// #include "bloom_driver.h"
+// #include <stdio.h>
+// #include <stdint.h>
+// #include <sys/mman.h>
+// #include <fcntl.h>
+// #include <unistd.h>
 
 // reg offsets
 #define KEY_IN   0x00
@@ -31,6 +45,9 @@ volatile uint32_t *base;
 int fd;
 
 void bloom_init(uint32_t base_addr) {
+#ifdef MOCK
+    mock_init();
+#else
     // open /dev/mem and mmap the hardware registers
     fd = open("/dev/mem", O_RDWR | O_SYNC);
 
@@ -57,23 +74,36 @@ void bloom_init(uint32_t base_addr) {
         close(fd);
         return;
     }
+#endif
 }
 
 // wait until hardware finishes
 static void wait_done() {
+#ifndef MOCK
     while (base[STATUS/4] & BUSY_MASK);
+#endif
 }
 
 void bloom_insert(uint32_t key) {
+#ifdef MOCK
+    mock_write_key(key);
+    mock_write_control(CMD_INSERT);
+#else
     wait_done();
 
     base[KEY_IN/4] = key;
     base[CONTROL/4] = CMD_INSERT;
-
+    
     wait_done();
+#endif
 }
 
 int bloom_query(uint32_t key) {
+#ifdef MOCK
+    mock_write_key(key);
+    mock_write_control(CMD_QUERY);
+    return mock_read_result() & 0x1;
+#else
     wait_done();
 
     base[KEY_IN/4] = key;
@@ -82,9 +112,12 @@ int bloom_query(uint32_t key) {
     wait_done();
 
     return base[RESULT/4] & 0x1;
+#endif
 }
 
 void bloom_cleanup() {
+#ifndef MOCK
     munmap((void *)base, 4096);
     close(fd);
+#endif
 }
