@@ -1,2 +1,6 @@
 build/
 dfx_runtime.txt
+
+sw/bloom_cli
+sw/test_bloom
+sw/*.o
