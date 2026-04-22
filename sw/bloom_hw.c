@@ -69,7 +69,7 @@ uint32_t bloom_hw_read_status(bloom_hw_t *hw) {
 
 uint32_t bloom_hw_read_result(bloom_hw_t *hw) {
     if (!hw || !hw->base) return 0;
-    return reg_read32(hw->base, REG_RESULT) & 0x1u;
+    return reg_read32(hw->base, REG_RESULT);
 }
 
 static int bloom_hw_wait_not_busy(bloom_hw_t *hw, uint32_t timeout_iters) {
@@ -86,17 +86,34 @@ static int bloom_hw_wait_not_busy(bloom_hw_t *hw, uint32_t timeout_iters) {
     return -1;
 }
 
-static int bloom_hw_wait_done(bloom_hw_t *hw, uint32_t timeout_iters) {
+static int bloom_hw_wait_done_after_command(bloom_hw_t *hw, uint32_t timeout_iters) {
     if (!hw || !hw->base) return -1;
 
-    while (timeout_iters--) {
-        uint32_t status = bloom_hw_read_status(hw);
-        if (status & STATUS_DONE_MASK) {
+    for (volatile unsigned spin = 0; spin < 65536u; spin++) {
+    }
+
+    uint32_t t;
+
+    if (bloom_hw_read_status(hw) & STATUS_DONE_MASK) {
+        for (t = 0; t < timeout_iters; t++) {
+            if ((bloom_hw_read_status(hw) & STATUS_DONE_MASK) == 0u) {
+                break;
+            }
+        }
+        if (t >= timeout_iters) {
+            fprintf(stderr,
+                    "bloom_hw: never saw DONE low after CONTROL (missed pulse or PL idle); "
+                    "continuing to wait for completion.\n");
+        }
+    }
+
+    for (t = 0; t < timeout_iters; t++) {
+        if (bloom_hw_read_status(hw) & STATUS_DONE_MASK) {
             return 0;
         }
     }
 
-    fprintf(stderr, "Timeout waiting for DONE=1\n");
+    fprintf(stderr, "Timeout waiting for DONE=1 (command complete)\n");
     return -1;
 }
 
@@ -107,8 +124,9 @@ int bloom_hw_insert(bloom_hw_t *hw, uint32_t key) {
 
     reg_write32(hw->base, REG_KEY_IN, key);
     reg_write32(hw->base, REG_CONTROL, CMD_INSERT);
+    __sync_synchronize();
 
-    if (bloom_hw_wait_done(hw, 1000000u) != 0) return -1;
+    if (bloom_hw_wait_done_after_command(hw, 10000000u) != 0) return -1;
 
     return 0;
 }
@@ -120,8 +138,9 @@ int bloom_hw_query(bloom_hw_t *hw, uint32_t key, int *maybe_present) {
 
     reg_write32(hw->base, REG_KEY_IN, key);
     reg_write32(hw->base, REG_CONTROL, CMD_QUERY);
+    __sync_synchronize();
 
-    if (bloom_hw_wait_done(hw, 1000000u) != 0) return -1;
+    if (bloom_hw_wait_done_after_command(hw, 10000000u) != 0) return -1;
 
     *maybe_present = (int)(bloom_hw_read_result(hw) & 0x1u);
     return 0;
@@ -133,8 +152,9 @@ int bloom_hw_clear(bloom_hw_t *hw) {
     if (bloom_hw_wait_not_busy(hw, 1000000u) != 0) return -1;
 
     reg_write32(hw->base, REG_CONTROL, CMD_CLEAR);
+    __sync_synchronize();
 
-    if (bloom_hw_wait_done(hw, 1000000u) != 0) return -1;
+    if (bloom_hw_wait_done_after_command(hw, 10000000u) != 0) return -1;
 
     return 0;
 }
