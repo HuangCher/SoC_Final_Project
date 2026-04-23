@@ -220,7 +220,7 @@ maybe present
 > query world
 definitely not present
 > bench 10000
-SW: 1240 ns/op   HW: 38 ns/op   Speedup: 32x
+SW: 1240 ns/op  HW: 38 ns/op   Speedup: 32x
 ```
 
 ### 4. Run RTL Simulation (Questa)
