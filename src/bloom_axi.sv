@@ -43,19 +43,16 @@ module bloom_axi #(
     localparam logic [ADDR_WIDTH-1:0] ADDR_RESULT  = 4'h8;
     localparam logic [ADDR_WIDTH-1:0] ADDR_STATUS  = 4'hC;
 
-    //  AXI wr handshake
+    // AXI-Lite write: AW and W channels are independent — latch each, then commit.
     logic bvalid_q;
+    logic have_aw, have_w;
+    logic wr_en;
+    logic [ADDR_WIDTH-1:0] wr_addr_q;
+    logic [DATA_WIDTH-1:0] wr_data_q;
 
-    // accept wr only when AW and W are valid and no pending resp
-    logic wr_accept;
-    assign wr_accept = s_axi_awvalid && s_axi_wvalid && !bvalid_q;
-
-    assign s_axi_awready = !bvalid_q;
-    assign s_axi_wready  = !bvalid_q;
-
-    logic                   wr_en;
-    logic [ADDR_WIDTH-1:0]  wr_addr_q;
-    logic [DATA_WIDTH-1:0]  wr_data_q;
+    // No new address/data while a write response is outstanding (single outstanding).
+    assign s_axi_awready = !have_aw && !bvalid_q;
+    assign s_axi_wready  = !have_w && !bvalid_q;
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
@@ -63,18 +60,29 @@ module bloom_axi #(
             wr_addr_q <= '0;
             wr_data_q <= '0;
             bvalid_q  <= 1'b0;
+            have_aw   <= 1'b0;
+            have_w    <= 1'b0;
         end else begin
-            wr_en <= wr_accept;
+            wr_en <= 1'b0;
 
-            if (wr_accept) begin
-                wr_addr_q <= s_axi_awaddr;
-                wr_data_q <= s_axi_wdata;
-            end
-
-            if (wr_accept)
-                bvalid_q <= 1'b1;
-            else if (bvalid_q && s_axi_bready)
+            if (bvalid_q && s_axi_bready)
                 bvalid_q <= 1'b0;
+
+            if (have_aw && have_w && !bvalid_q) begin
+                wr_en     <= 1'b1;
+                bvalid_q  <= 1'b1;
+                have_aw   <= 1'b0;
+                have_w    <= 1'b0;
+            end else begin
+                if (s_axi_awready && s_axi_awvalid) begin
+                    wr_addr_q <= s_axi_awaddr;
+                    have_aw   <= 1'b1;
+                end
+                if (s_axi_wready && s_axi_wvalid) begin
+                    wr_data_q <= s_axi_wdata;
+                    have_w    <= 1'b1;
+                end
+            end
         end
     end
 

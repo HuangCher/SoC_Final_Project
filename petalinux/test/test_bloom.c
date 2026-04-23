@@ -3,7 +3,7 @@
 #include "../bloom_driver.h"
 
 int main() {
-    bloom_init(0); // base_addr unused in mock
+    bloom_init(0x44A00000u);
 
     printf("Running tests...\n");
 

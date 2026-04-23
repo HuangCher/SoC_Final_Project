@@ -78,7 +78,7 @@ source $script_dir/bd/design_1.tcl
 # Exclude bloom_axi from MicroBlaze instruction address space (if mapped there)
 catch {
     exclude_bd_addr_seg \
-        [get_bd_addr_segs bloom_axi_0/s_axi/reg0] \
+        [get_bd_addr_segs perifs/axi_perifs/bloom_axi_0/s_axi/reg0] \
         -target_address_space [get_bd_addr_spaces microblaze_0/Instruction]
 }
 

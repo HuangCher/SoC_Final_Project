@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include "bloom_driver.h"
 
-#define BASE_ADDR 0x00000000 // replace with actual base addy
+#define BASE_ADDR 0x44A00000u
 
 int main() {
     bloom_init(BASE_ADDR);
