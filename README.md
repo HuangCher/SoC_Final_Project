@@ -4,6 +4,8 @@ by Cher Huang, Jacob Frankel, Steesha D'sa, Gabriel Frank
 
 A full hardware/software co-design project implementing a **Bloom Filter accelerator** on a MicroBlaze system running embedded Linux. The accelerator is exposed as a custom AXI peripheral and controlled entirely from user-space via memory-mapped I/O (MMIO).
 
+Video link: [https://youtu.be/YtErccVd-2U](https://youtu.be/YtErccVd-2U)
+
 ---
 
 ## Project Requirements Fulfilled
